@@ -1,0 +1,708 @@
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(plotly)
+library(circlize)
+#==============================================================================================================
+#loading dataset
+player=read.csv("D:\\DC activity 1\\Player_match.csv")
+player=data.frame(player)
+player
+#==============================================================================================================
+glimpse(player)
+player = player[, -c(16, 17)]##(removing columns with missing values)
+glimpse(player)
+#==============================================================================================================
+##(1)Correcting Column Names
+#I already applied dplyr previously
+# Examining the current column names
+print(colnames(player))
+
+#Correcting the column names
+player = player %>%
+  rename(Player_SK = Player_match_SK,
+         Man_of_the_match = is_manofThematch,
+         PlayingTeam_Keeper = Player_keeper,
+         OpposingTeam_Keeper = Opposit_keeper,
+         PlayingTeam_Captain = Player_Captain,
+         OpposingTeam_Captain = Opposit_captain,
+         Playing_Team = Player_team,
+         Opposing_Team = Opposit_Team,
+         Did_Playing_TeamWin = IsPlayers_Team_won)
+
+# Verify the updated column names
+print(colnames(player))
+
+#==============================================================================================================
+##checking Consistency in Categorical Variables
+table(player$Role_Desc)
+
+#checking Consistency in Numerical Variables
+# Filter rows where 'Age' is between 0 and 50 (inclusive)
+player_age = player[player$Age >= 0 & player$Age <= 50, ]
+
+# Assuming 'player_age' contains the subset of rows where 'Age' is between 0 and 50
+# Select the rows that are NOT in 'player_age' and print specific columns
+not_in_age_range <- player[!(player$Age >= 0 & player$Age <= 50), c('Player_Name','Age_As_on_match', 'Country_Name')]
+
+# Print the selected columns for the rows not in 'player_age'
+print(not_in_age_range)
+#=========================================================================================================================
+
+#to count the occurrences of each category
+player_category1 = table(player$PlayingTeam_Captain)
+
+# Filtering for categories that occur only once
+unique_categories = names(player_category1[player_category1 == 1])
+unique_categories1 = names(player_category1[player_category1 !=1])
+
+# Printing the unique categories with one-time repetition
+print(unique_categories)
+print(unique_categories1)
+
+#-------------------------------------------------------------------------------------------------------------------------
+#to count the occurrences of each category
+player_category2 = table(player$OpposingTeam_Captain)
+
+#  Filtering for categories that occur only once
+unique_categories = names(player_category2[player_category2 == 1])
+unique_categories2 = names(player_category2[player_category2 !=1])
+# Printing the unique categories with one-time repetition
+print(unique_categories)
+print(unique_categories2)
+#==========================================================================================================================
+##Replacing the spelling mistakes that were identified in the previous process
+player = player %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("DA Warnir"), "DA Warner", PlayingTeam_Captain)) %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("GJ Mxwell"), "GJ Maxwell", PlayingTeam_Captain)) %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("R Dravi"), "R Dravid", PlayingTeam_Captain)) %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("RG Shama"), "RG Sharma", PlayingTeam_Captain)) %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("RG Sharmaaa"), "RG Sharma", PlayingTeam_Captain)) %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("SC Gnguly"), "SC Ganguly", PlayingTeam_Captain)) %>%
+  mutate(PlayingTeam_Captain = ifelse(PlayingTeam_Captain %in% c("V Koli"), "V Kohli", PlayingTeam_Captain)) %>%
+  mutate(OpposingTeam_Captain = ifelse(OpposingTeam_Captain %in% c("G Gambhr"), "G Gambhir", OpposingTeam_Captain)) %>%
+  mutate(OpposingTeam_Captain = ifelse(OpposingTeam_Captain %in% c("R David"), "R Dravid", OpposingTeam_Captain)) %>%
+  mutate(OpposingTeam_Captain = ifelse(OpposingTeam_Captain %in% c("RG Sarma"), "RG Sharma", OpposingTeam_Captain)) %>%
+  mutate(OpposingTeam_Captain = ifelse(OpposingTeam_Captain %in% c("SC Gangul"), "SC Ganguly", OpposingTeam_Captain)) %>%
+  mutate(OpposingTeam_Captain = ifelse(OpposingTeam_Captain %in% c("Z Khaan"), "Z Khan", OpposingTeam_Captain))
+#==========================================================================================================================
+#after replacing run this code to check if the repeatations are replaced
+player_category1 = table(player$PlayingTeam_Captain)
+
+# Filtering for categories that occur only once
+unique_categories = names(player_category1[player_category1 == 1])
+unique_categories1 = names(player_category1[player_category1 !=1])
+
+# Printing the unique categories with one-time repetition
+print(unique_categories)
+print(unique_categories1)
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#to count the occurrences of each category
+player_category2 = table(player$OpposingTeam_Captain)
+
+#  Filtering for categories that occur only once
+unique_categories = names(player_category2[player_category2 == 1])
+unique_categories2 = names(player_category2[player_category2 !=1])
+# Printing the unique categories with one-time repetition
+print(unique_categories)
+print(unique_categories2)
+
+#==========================================================================================================================================================================================
+
+# Define a function to replace values based on conditions
+replace_values <- function(data) {
+  for (i in 1:nrow(data)) {
+    role_desc <- data$Role_Desc[i]
+    bowling_skill <- data$Bowling_skill[i]
+    batting_hand <- data$Batting_hand[i]
+    
+    if ((role_desc == "Keeper" || role_desc == "CaptainKeeper") && (is.na(bowling_skill) || bowling_skill == "None"|| bowling_skill == "NULL" || bowling_skill == "N/A")) {
+      data$Bowling_skill[i] <- sample(c("Right-arm medium", "Left-arm medium"), 1)
+    } else if (role_desc == "Player" && (is.na(bowling_skill) || bowling_skill == "NULL" || bowling_skill == "N/A")) {
+      if (batting_hand == "Left-hand bat") {
+        data$Bowling_skill[i] <- sample(c("Left-arm fast", "Left-arm medium"), 1)
+      } else {
+        data$Bowling_skill[i] <- sample(c("Right-arm fast", "Right-arm medium"), 1)
+      }
+    }
+  }
+  return(data)
+}
+# Apply the function to replace values in the dataset
+player = replace_values(player)
+
+# Print the updated dataset
+print(player)
+
+#===========================================================================================================================================================================
+
+# Define a vector of column names to include in displaying unique values
+columns_to_include = c("Batting_hand","Bowling_skill")  
+
+for (col in columns_to_include) {
+  if (col %in% names(player)) {
+    unique_values = unique(player[[col]])
+    cat("Unique values in column '", col, "':\n")
+    print(unique_values)
+    cat("\n")
+  }
+}
+
+#Replacing the typo errors like space and spelling
+player = player %>%
+  mutate(Batting_hand = ifelse(Batting_hand %in% c("\xa0Right-hand bat","Right-handed"), "Right-hand bat", Batting_hand))
+player = player %>%
+  mutate(Batting_hand = ifelse(Batting_hand %in% c("\xa0Left-hand bat"), "Left-hand bat", Batting_hand))
+#================================================================================================================================
+player = player %>%
+  mutate(Bowling_skill = ifelse(Bowling_skill %in% c("\xa0Left-arm fast"), "Left-arm fast", Bowling_skill))
+player = player %>%
+  mutate(Bowling_skill = ifelse(Bowling_skill %in% c("\xa0Right-arm fast-medium"), "Right-arm fast-medium", Bowling_skill))
+player = player %>%
+  mutate(Bowling_skill = ifelse(Bowling_skill %in% c("\xa0Right-arm medium-fast"), "Right-arm medium-fast", Bowling_skill))
+player = player %>%
+  mutate(Bowling_skill = ifelse(Bowling_skill %in% c("\xa0Right-arm offbreak"), "Right-arm offbreak", Bowling_skill))
+player = player %>%
+  mutate(Bowling_skill = ifelse(Bowling_skill %in% c("\xa0Legbreak"), "Legbreak", Bowling_skill))
+#================================================================================================================================
+#Run this code again to check if the errors are removed and there is no typo 
+columns_to_include = c("Batting_hand","Bowling_skill")  
+
+for (col in columns_to_include) {
+  if (col %in% names(player)) {
+    unique_values = unique(player[[col]])
+    cat("Unique values in column '", col, "':\n")
+    print(unique_values)
+    cat("\n")
+  }
+}
+#===========================================================================================================================
+#Count of unique values in each column
+for (col in names(player)) {
+  unique_values = unique(player[[col]])
+  num_unique = length(unique_values)
+  cat("Column:", col, "has", num_unique, "unique values.\n")
+}
+#==========================================================================================================================================
+#==========================================================================================================================================
+
+# Define a function to detect outliers using the IQR method
+detect_outliers <- function(data, column_name) {
+  # Check if the specified column contains missing values
+  if (any(is.na(data[[column_name]]))) {
+    cat("Column", column_name, "contains missing values. Outlier detection skipped.\n")
+    return(NULL)
+  }
+  
+  # Calculate the first quartile (Q1) and third quartile (Q3)
+  q1 <- quantile(data[[column_name]], 0.25)
+  q3 <- quantile(data[[column_name]], 0.75)
+  
+  # Calculate the IQR (Interquartile Range)
+  iqr <- q3 - q1
+  
+  # Calculate the lower and upper bounds for outliers
+  lower_bound <- q1 - 1.5 * iqr
+  upper_bound <- q3 + 1.5 * iqr
+  
+  # Identify outliers using the bounds
+  outliers <- data %>%
+    filter(data[[column_name]] < lower_bound | data[[column_name]] > upper_bound)
+  
+  return(outliers)
+}
+
+outliers_data <- detect_outliers(player, 'Age_As_on_match')
+
+# Prints the outliers
+if (!is.null(outliers_data)) {
+  print(outliers_data)
+}
+
+detect_outliers <- function(data, factor = 1.5) {
+  # Calculate the first and third quartiles
+  q1 <- quantile(data, 0.25)
+  q3 <- quantile(data, 0.75)
+  
+  # Calculate the interquartile range (IQR)
+  iqr <- q3 - q1
+  
+  # Calculate the lower and upper bounds for outliers
+  lower_bound <- q1 - factor * iqr
+  upper_bound <- q3 + factor * iqr
+  
+  # Identify outliers
+  outliers <- data[data < lower_bound | data > upper_bound]
+  
+  return(outliers)
+}
+
+#==============================================================================================================================
+
+                        
+#                   #GGGGGGGG       OOOOOO           TTTTTTTTTTTTTTTTT      OOOOOO       
+#                  GG              OO    OO                 TT             OO    OO  
+#                 GG              OO      OO                 TT           OO      OO
+#                GG     GGGGG     OO      OO                TT            OO      OO  
+#                 GG       GG     OO      OO                 TT           OO      OO
+#                  GG      GG      OO    OO                 TT             OO    OO
+                    #GGGGGGGG       OOOOOO                   TT             OOOOOO
+
+
+
+ #[AFTER DETECTING THE OUTLIERS RUN THE BOXPLOT TO VISUALIZE IF THERE IS ANY OUTLIERS IN THE DATASET] 
+                    #[IF IT SHOWS OUTLIER THEN REMOVE AND REPLACE THE OUTLIERS]
+      #[THEN AGAIN RUN THE BOXPLOT TO VISUALIZE IF THERE IS ANY OUTLIERS IN THE DATASET]
+
+
+
+           #PPPPPPPP    LL                 OOOOOOO      TTTTTTTTTTTTTTTTTTTTT      SSSSSSS
+           #P      PP   LL               OO       OO             TT               SS
+           #P       PP  LL              OO         OO           TT               SS
+           #P      PP   LL             OO           OO           TT               SS
+           #PPPPPPPP    LL            OO             OO         TT                  SSSSS
+           #P           LL             OO           OO           TT                      SS
+           #P           LL              OO         OO           TT                        SS
+           #P           LL               OO       OO             TT                      SS 
+           #P           LLLLLLLLLLL        OOOOOOO              TT                 SSSSSSS
+#==============================================================================================================================
+
+# Define a function to replace outliers with the nearest random age value
+replace_outliers_with_random <- function(data, column_name) {
+  # Check if the specified column contains missing values
+  if (any(is.na(data[[column_name]]))) {
+    cat("Column", column_name, "contains missing values. Replacement skipped.\n")
+    return(NULL)
+  }
+  
+  # Calculate the first quartile (Q1) and third quartile (Q3)
+  q1 <- quantile(data[[column_name]], 0.25, na.rm = TRUE)
+  q3 <- quantile(data[[column_name]], 0.75, na.rm = TRUE)
+  
+  # Calculate the IQR (Interquartile Range)
+  iqr <- q3 - q1
+  
+  # Calculate the lower and upper bounds for outliers
+  lower_bound <- q1 - 1.5 * iqr
+  upper_bound <- q3 + 1.5 * iqr
+  
+  # Identify outliers using the bounds
+  outliers <- data %>%
+    filter(data[[column_name]] < lower_bound | data[[column_name]] > upper_bound)
+  
+  # Replace outliers with the nearest random age value from the dataset
+  for (i in 1:nrow(outliers)) {
+    random_age <- sample(data[[column_name]], 1)
+    data[data[[column_name]] == outliers[[column_name]][i], column_name] <- random_age
+  }
+  
+  return(data)
+}
+
+player = player %>%
+  replace_outliers_with_random(., 'Age_As_on_match')
+
+# Print the updated data frame
+print(player)
+
+
+#==========================================================================================================================================
+
+#==========================================================================================================================================
+
+#PPPPPPPPPPPPPPPP             LLL                            OOOOOOOOOOOOOOOOOOOO        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+#P              PP            LLL                           OO                  OO      TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+#P               PP           LLL                          OO                    OO                      TT
+#P                PP          LLL                         OO                      OO                   TT
+#P                 PP         LLL                        OO                        OO                    TT
+#P                 PP         LLL                       OO                          OO                 TT  
+#P                PP          LLL                      OO                            OO                  TT
+#P               PP           LLL                      OO                            OO                TT
+#P              PP            LLL                      OO                            OO                  TT
+#PPPPPPPPPPPPPPPP             LLL                      OO                            OO                TT
+#P                            LLL                      OO                            OO                  TT
+#p                            LLL                      OO                            OO                TT
+#P                            LLL                      OO                            OO                  TT
+#P                            LLL                       OO                          OO                 TT
+#p                            LLL                        OO                        OO                    TT
+#P                            LLL                         OO                      OO                   TT
+#P                            LLL                          OO                    OO                      TT
+#P                            LLLLLLLLLLLLLLLLLLL           OO                  OO                     TT                  
+#                             LLLLLLLLLLLLLLLLLLL            OOOOOOOOOOOOOOOOOOOO                                                           
+                                                                                                       
+
+#==========================================================================================================================================
+#Box plot (Age as on match for identifying outlier)[Numerical Data Visualization]
+
+# Create a box plot for the Age_As_on_match column
+
+ggplot(data.frame(player), aes(x = "", y = Age_As_on_match)) +
+  geom_boxplot(fill = "yellow", color = "black", alpha = 0.8) +
+  labs(y = "Age on Match", title = "Box Plot of Age on Match") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, hjust = 0.5),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+glimpse(player)
+#===========================================================================================================================================
+#Scatter plot (player Age vs Role Description)[Numerical vs Categorical Data visualization]
+
+# Create separate scatter plots for left and right-handed batsmen
+ggplot(data.frame(player), aes(x = Role_Desc, y = Age_As_on_match)) +
+  geom_jitter(
+    color = "green",  # Color points by Batting_hand
+    size = 3,                   # Point size
+    width = 0.2,                 #Transparency
+    height = 0
+  ) +
+  labs(
+    title = "Age vs Role Description",
+    x = "Role Desc",
+    y = "Age As on match"
+  ) +
+  theme_minimal()
+  ggsave("scatter_plot.png", plot = last_plot(), dpi = 300, width = 10, height = 6)
+  
+#---------------------------------------------------------------------------------------------------------------
+#Scatter plot (Role description vs bowling skill)[Categorical Data visualization]
+  
+  
+  # Create separate scatter plots for left and right-handed batsmen
+  ggplot(data.frame(player), aes(x = Role_Desc, y = Bowling_skill)) +
+    geom_jitter(
+      color = "blue",  # Color points by Batting_hand
+      size = 3,                   # Point size
+      width = 0.2,                 #Transparency
+      height = 0
+    ) +
+    labs(
+      title = "Role description vs Bowling skill",
+      x = "Role Desc",
+      y = "Bowling skill"
+    ) +
+    theme_minimal()
+  ggsave("scatter_plot.png", plot = last_plot(), dpi = 300, width = 10, height = 6)
+
+#-------------------------------------------------------------------------------------------------------------------
+#Scatter plot(Role description vs playing team)[Categorical Data Visualization]
+  
+  
+  # Create separate scatter plots for left and right-handed batsmen
+  ggplot(data.frame(player), aes(x = Role_Desc, y = Playing_Team)) +
+    geom_jitter(
+      color = "red",  # Color points by Batting_hand
+      size = 3,                   # Point size
+      width = 0.2,                 #Transparency
+      height = 0
+    ) +
+    labs(
+      title = "Role description vs Playing Team",
+      x = "Role Desc",
+      y = "Playing Team"
+    ) +
+    theme_minimal()
+  ggsave("scatter_plot.png", plot = last_plot(), dpi = 300, width = 10, height = 6)
+  
+#--------------------------------------------------------------------------------------------------------------------
+  #Scatter plot(Role description vs Opposing team)[Categorical Data Visualization]
+  
+  library(ggplot2)
+  
+  ggplot(data.frame(player), aes(x = Role_Desc, y = Opposing_Team)) +
+    geom_jitter(
+      color = "purple",  # Color points by Batting_hand
+      size = 3,                   # Point size
+      width = 0.2,                 #Transparency
+      height = 0
+    ) +
+    labs(
+      title = "Role description vs Opposing Team",
+      x = "Role Desc",
+      y = "Opposing Team"
+    ) +
+    theme_minimal()
+  ggsave("scatter_plot.png", plot = last_plot(), dpi = 300, width = 10, height = 6)
+  
+  
+#===========================================================================================================================================
+#histogram (Distribution of Age on Match Day)[Numerical Data Visualization]
+  
+  # Load the required library
+  library(ggplot2)
+  
+  # Create a histogram for Age_As_on_match
+  ggplot(data.frame(player), aes(x = Age_As_on_match)) +
+    geom_histogram(binwidth = 1, fill = "gold", color = "black") +
+    labs(
+      title = "Distribution of Age on Match Day",
+      x = "Age",
+      y = "Frequency"
+    ) +
+    theme_minimal()
+  
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#histogram (Distribution of Season year)[Numerical Data Visualization]
+  
+  # Load the required library
+  library(ggplot2)
+  
+  # Convert Season_year to a factor
+  player$Season_year <- as.factor(player$Season_year)
+  
+  # Create a bar chart for Season_year
+  ggplot(data.frame(player), aes(x = Season_year)) +
+    geom_bar(fill = "cyan", color = "black") +
+    labs(
+      title = "Distribution of Season year",
+      x = "Year",
+      y = "Frequency"
+    ) +
+    theme_minimal()
+  
+#============================================================================================================================================
+#Violin plot Distribution of Age by year [Numerical Data Visualization] 
+  
+  # Load the required library
+  library(ggplot2)
+  
+  # Create a violin plot with explicit x-axis grouping
+  ggplot(player, aes(x = 1, y = Age_As_on_match, fill = Season_year)) +
+    geom_violin(
+      aes(group = Season_year),  # Specify the group aesthetic
+      trim = FALSE         # Show the entire distribution
+    ) +
+    labs(
+      title = "Distribution of Age by year",
+      x = "season/year",         # Label the x-axis appropriately
+      y = "Age as on match"
+    ) +
+    theme_minimal()
+
+glimpse(player)
+#---------------------------------------------------------------------------------------------------------------------------------------------
+#Violin plot Distribution of wining team by year[Numerical Data Visualization]
+
+# Load the required library
+library(ggplot2)
+
+# Convert Did_Playing_TeamWin to a factor or character
+player$Did_Playing_TeamWin <- as.factor(player$Did_Playing_TeamWin)
+
+# Create a violin plot with explicit x-axis grouping
+ggplot(player, aes(x = 1, y = Did_Playing_TeamWin, fill = Season_year)) +
+  geom_violin(
+    aes(group = Season_year),  # Specify the group aesthetic
+    scale = "count",     # Adjust the width based on the number of data points
+    trim = FALSE         # Show the entire distribution
+  ) +
+  labs(
+    title = "Distribution of wining team by year",
+    x = "season/year",         # Label the x-axis appropriately
+    y = "Did playing team win"
+  ) +
+  theme_minimal()
+
+#============================================================================================================================================
+#Count of unique values in each column
+for (col in names(player)) {
+  unique_values = unique(player[[col]])
+  num_unique = length(unique_values)
+  cat("Column:", col, "has", num_unique, "unique values.\n")
+}
+#============================================================================================================================================
+#============================================================================================================================================
+#Bar plot of Role description[Categorical Data Visualization]
+
+# Load the required library
+library(ggplot2)
+
+# Create a bar plot with a single variable and no y-axis values
+ggplot(player, aes(x = Role_Desc)) +
+  geom_bar(stat = "count", fill = "salmon", color="black") +
+  labs(
+    title = "Bar Plot of Role Description",
+    x = "Role_Desc"
+  ) +
+  theme_minimal()
+
+#--------------------------------------------------------------------------------------------------------------------------------------------
+#Stacked Bar chart of Did Playing TeamWin vs PlayingTeam Captain [Categorical vs Numerical Data Visualization]
+
+# Load the required library
+library(ggplot2)
+
+# Create a stacked bar chart
+ggplot(player, aes(x = Did_Playing_TeamWin)) +
+  geom_bar(aes(fill = PlayingTeam_Captain), position = "stack") +
+  labs(
+    title = "Scatter plot of Did Playing TeamWin vs PlayingTeam Captain",
+    x = "Did_Playing_TeamWin",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+#Stacked Bar chart of Man of the match vs Opposing Team[Categorical Data Visualization]
+
+player$Man_of_the_match = factor(player$Man_of_the_match, labels = c("0", "1"))
+
+# Create a stacked bar chart
+ggplot(player, aes(x = Man_of_the_match)) +
+  geom_bar(aes(fill = OpposingTeam_Captain), position = "stack") +
+  labs(
+    title = "Stacked Bar chart of Man of the match vs Opposing Team",
+    x = "Man_of_the_match",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+#Stacked Bar chart of Role Description vs PlayingTeam_Keeper[Categorical Data Visualization]
+
+# Create a stacked bar chart
+ggplot(player, aes(x = Role_Desc)) +
+  geom_bar(aes(fill = PlayingTeam_Keeper), position = "stack") +
+  labs(
+    title = "Stacked Bar chart of Role Description vs PlayingTeam_Keeper",
+    x = "Role Description",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+# Stacked Bar chart of Role Description vs OpposingTeam_Keeper[Categorical Data Visualization]
+ggplot(player, aes(x = Role_Desc)) +
+  geom_bar(aes(fill = OpposingTeam_Keeper), position = "stack") +
+  labs(
+    title = "Stacked Bar chart of Role Description vs OpposingTeam_Keeper",
+    x = "Role Description",
+    y = "Frequecy"
+  ) +
+  theme_minimal()
+
+#===============================================================================================================================================
+for (col in names(player)) {
+  unique_values = unique(player[[col]])
+  num_unique = length(unique_values)
+  cat("Column:", col, "has", num_unique, "unique values.\n")
+}
+#===============================================================================================================================================
+#Pie chart
+
+# Calculate the count and percentage of each order status
+Role_Desc_summary <- player %>%
+  group_by(Role_Desc) %>%
+  summarize(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+# Create a pie chart
+ggplot(Role_Desc_summary, aes(x = "", y = count, fill = Role_Desc )) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste(Role_Desc, "(", round(percentage, 1), "%)")), position = position_stack(vjust = 0.5)) +
+  labs(
+    title = "Pie Chart of Role description",
+    x = NULL,
+    y = NULL,
+    fill = "Role Desc"
+  ) +
+  theme_void() +
+  theme(legend.position = "right")
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+#Count of unique values in each column
+for (col in names(player)) {
+  unique_values = unique(player[[col]])
+  num_unique = length(unique_values)
+  cat("Column:", col, "has", num_unique, "unique values.\n")
+}
+#-------------------------------------------------------------------------------------------------------------------------------------
+#pie chart 
+
+# Calculate the count and percentage of each order status
+Season_year_summary <- player %>%
+  group_by(Season_year) %>%
+  summarize(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+# Create a pie chart
+ggplot(Season_year_summary, aes(x = "", y = count, fill = Season_year)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste(Season_year, "(", round(percentage, 1), "%)")), position = position_stack(vjust = 0.5)) +
+  labs(
+    title = "Pie Chart of Season year",
+    x = NULL,
+    y = NULL,
+    fill = "Season year"
+  ) +
+  theme_void() +
+  theme(legend.position = "right")
+
+#=====================================================================================================================================
+#Count of unique values in each column
+for (col in names(player)) {
+  unique_values = unique(player[[col]])
+  num_unique = length(unique_values)
+  cat("Column:", col, "has", num_unique, "unique values.\n")
+}
+
+#=========================================================================================================================
+#=========================================================================================================================
+#Donut chart of playing team[Categorical Data Visualization]
+
+library(plotly)
+player_values <- table(player_age$Opposing_Team)
+
+# Create a donut chart
+donut_chart <- plot_ly(
+  labels = names(player_values),
+  values = player_values,
+  type = "pie",
+  hole = 0.6  # Adjust the hole size for a donut effect
+)
+
+# Customize the chart layout
+donut_chart <- donut_chart %>%
+  layout(
+    title = "Donut Chart of Opposing Team",
+    showlegend = TRUE,
+    margin = list(l = 20, r = 20)  # Adjust margins as needed
+  )
+
+# Display the chart
+donut_chart
+
+
+#===========================================================================================================================
+#chord diagram of player Team and age as on match
+
+library(circlize)
+
+# Create a matrix of interactions (e.g., customer IDs) with counts
+player_matrix = table(player$Season_year, player$Batting_hand)
+
+chordDiagram(player_matrix, transparency = 0.5)
+
+
+#======================================================================================================================================
+#======================================================================================================================================
+
+
+#           EEEEEEEEEEEEEEEEE       NNN          NN      DDDDDDDDDDD
+#           EE                      NN N         NN      DD        DD
+#           EE                      NN  N        NN      DD         DD
+#           EE                      NN   N       NN      DD          DD
+#           EE                      NN    N      NN      DD           DD
+#           EEEEEEEEEEEEEEEEE       NN     N     NN      DD            DD
+#           EE                      NN      N    NN      DD            DD
+#           EE                      NN       N   NN      DD           DD
+#           EE                      NN        N  NN      DD          DD
+#           EE                      NN         N NN      DD         DD
+#           EEEEEEEEEEEEEEEEE       NN          NNN      DDDDDDDDDDDD
+
