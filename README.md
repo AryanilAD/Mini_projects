@@ -1,5 +1,5 @@
 
-<h1> SAS Project: Analyzing ENSO Dataset using ARIMA Model</h1>
+<h1> SAS Project : Analyzing ENSO Dataset using ARIMA Model</h1>
 
 **Introduction:**
 The purpose of this mini project is to analyze the ENSO (El Niño-Southern Oscillation) dataset using SAS and the ARIMA (AutoRegressive Integrated Moving Average) model. The ENSO dataset provides information on various climate indicators, such as sea surface temperature anomalies, atmospheric pressure, and wind patterns, which are crucial for understanding global climate patterns and predicting weather phenomena.
